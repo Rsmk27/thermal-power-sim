@@ -1,5 +1,46 @@
 import { create } from 'zustand';
 
+export enum SimulationStep {
+    IDLE = 'IDLE',
+    COAL_HANDLING = 'COAL_HANDLING',
+    COMBUSTION = 'COMBUSTION',
+    STEAM_GENERATION = 'STEAM_GENERATION',
+    TURBINE_ROTATION = 'TURBINE_ROTATION',
+    POWER_GENERATION = 'POWER_GENERATION',
+    TRANSMISSION = 'TRANSMISSION'
+}
+
+export const STEP_DESCRIPTIONS: Record<SimulationStep, { title: string; description: string }> = {
+    [SimulationStep.IDLE]: {
+        title: 'Thermal Power Plant',
+        description: 'Welcome to the interactive Thermal Power Plant simulation. Click "Next" to start the tour.'
+    },
+    [SimulationStep.COAL_HANDLING]: {
+        title: 'Coal Handling',
+        description: 'Coal is transported via conveyor belts to the pulverizers, where it is crushed into a fine powder to ensure efficient combustion.'
+    },
+    [SimulationStep.COMBUSTION]: {
+        title: 'Combustion (Boiler)',
+        description: 'The pulverized coal is blown into the boiler furnace and ignited. This releases massive amounts of heat energy.'
+    },
+    [SimulationStep.STEAM_GENERATION]: {
+        title: 'Steam Generation',
+        description: 'Heat from combustion boils water flowing through tubes in the boiler walls, turning it into high-pressure, high-temperature steam.'
+    },
+    [SimulationStep.TURBINE_ROTATION]: {
+        title: 'Steam Turbine',
+        description: 'The high-pressure steam strikes the turbine blades, causing the shaft to rotate at high speeds (typically 3000 RPM).'
+    },
+    [SimulationStep.POWER_GENERATION]: {
+        title: 'Generator',
+        description: 'The rotating turbine shaft turns the generator rotor inside a magnetic field, inducing an electric current (electricity).'
+    },
+    [SimulationStep.TRANSMISSION]: {
+        title: 'Transmission',
+        description: 'The generated electricity is stepped up by transformers to high voltage for efficient long-distance transmission via the grid.'
+    }
+};
+
 interface ThermalPlantState {
     // Inputs
     targetLoad: number; // 0-100%
@@ -9,6 +50,7 @@ interface ThermalPlantState {
     isRunning: boolean;
     isTripped: boolean;
     simulationTime: number;
+    currentStep: SimulationStep;
 
     // Physics / Simulation Variables
     boilerPressure: number; // Bar
@@ -34,6 +76,9 @@ interface ThermalPlantState {
     stopSimulation: () => void;
     tripTurbine: () => void;
     reset: () => void;
+    setStep: (step: SimulationStep) => void;
+    nextStep: () => void;
+    prevStep: () => void;
 
     // Simulation Loop
     tick: (delta: number) => void;
@@ -46,6 +91,7 @@ export const useThermalStore = create<ThermalPlantState>((set, get) => ({
     isRunning: false,
     isTripped: false,
     simulationTime: 0,
+    currentStep: SimulationStep.IDLE,
 
     boilerPressure: 100,
     boilerTemp: 300,
@@ -71,6 +117,7 @@ export const useThermalStore = create<ThermalPlantState>((set, get) => ({
         isRunning: false,
         isTripped: false,
         simulationTime: 0,
+        currentStep: SimulationStep.IDLE,
         boilerPressure: 100,
         boilerTemp: 300,
         steamFlowRate: 50,
@@ -80,6 +127,19 @@ export const useThermalStore = create<ThermalPlantState>((set, get) => ({
         selectedComponent: null,
         activeAlarms: []
     }),
+    setStep: (step) => set({ currentStep: step }),
+    nextStep: () => {
+        const steps = Object.values(SimulationStep);
+        const currentIndex = steps.indexOf(get().currentStep);
+        const nextIndex = Math.min(currentIndex + 1, steps.length - 1);
+        set({ currentStep: steps[nextIndex] });
+    },
+    prevStep: () => {
+        const steps = Object.values(SimulationStep);
+        const currentIndex = steps.indexOf(get().currentStep);
+        const prevIndex = Math.max(currentIndex - 1, 0);
+        set({ currentStep: steps[prevIndex] });
+    },
 
     tick: (delta) => {
         const state = get();

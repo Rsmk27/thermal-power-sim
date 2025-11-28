@@ -1,11 +1,13 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useThermalStore } from '@/store/thermalStore';
+import { useThermalStore, SimulationStep } from '@/store/thermalStore';
 import * as THREE from 'three';
 
 export function Turbine(props: any) {
     const shaftRef = useRef<THREE.Group>(null);
+    const casingRef = useRef<THREE.Group>(null);
     const turbineRPM = useThermalStore((state) => state.turbineRPM);
+    const currentStep = useThermalStore((state) => state.currentStep);
 
     useFrame((state, delta) => {
         if (shaftRef.current) {
@@ -13,6 +15,25 @@ export function Turbine(props: any) {
             // Scaling down visual speed so it doesn't look like a blur
             const rotationSpeed = (turbineRPM / 60) * Math.PI * 2 * delta * 0.1;
             shaftRef.current.rotation.x += rotationSpeed;
+        }
+
+        if (casingRef.current) {
+            const isStepActive = currentStep === SimulationStep.TURBINE_ROTATION;
+
+            casingRef.current.children.forEach((child: any) => {
+                if (child.isMesh && child.material) {
+                    const baseColor = new THREE.Color("#64748b");
+                    if (isStepActive) {
+                        const pulse = (Math.sin(state.clock.elapsedTime * 4) + 1) * 0.5;
+                        baseColor.add(new THREE.Color(0.2, 0.2, 0.5).multiplyScalar(pulse));
+                        child.material.emissive.setHex(0x4466aa);
+                        child.material.emissiveIntensity = 0.5 + pulse;
+                    } else {
+                        child.material.emissiveIntensity = 0;
+                    }
+                    child.material.color.lerp(baseColor, 0.1);
+                }
+            });
         }
     });
 
@@ -24,7 +45,7 @@ export function Turbine(props: any) {
             onClick={(e) => { e.stopPropagation(); useThermalStore.getState().setSelectedComponent('Steam Turbine'); }}
         >
             {/* Turbine Casing - Multi-stage */}
-            <group position={[0, 2, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <group ref={casingRef} position={[0, 2, 0]} rotation={[0, 0, Math.PI / 2]}>
                 {/* High Pressure (HP) Stage */}
                 <mesh position={[-2.5, 0, 0]} castShadow receiveShadow>
                     <cylinderGeometry args={[1.2, 1.2, 2]} />
